@@ -1,5 +1,5 @@
-from ..comfy_api_simplified.comfy_api_wrapper import ComfyApiWrapper
-from ..comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
+from comfy_api_simplified import ComfyApiWrapper
+from comfy_api_simplified import ComfyWorkflowWrapper
 
 api = ComfyApiWrapper("http://192.168.0.22:8188/")
 # api = ComfyApiWrapper("https://smth.com/", user="user", password="password")
