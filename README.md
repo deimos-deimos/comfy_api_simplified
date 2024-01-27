@@ -37,7 +37,7 @@ In ComfyUI settings, check "Enable Dev mode Options":
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
 
 # create api wrapper using your ComfyUI url (add user and password params if needed)
-api = ComfyApiWrapper("http://192.168.0.22:8188/")
+api = ComfyApiWrapper("http://127.0.0.1:8188/")
 
 # create workflow wrapper using your downloaded in api format workflow
 wf = ComfyWorkflowWrapper("workflow_api.json")
