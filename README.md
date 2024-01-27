@@ -1,4 +1,5 @@
 # Comfy API Simplified
+
 This is a little python wrapper over the [ComfyUI](https://github.com/comfyanonymous/ComfyUI) API. It allows you to edit API-format ComfyUI workflows and queue them programmaticaly to the already running ComfyUI.
 
 I use it to iterate over multiple prompts and key parameters of workflow and get hundreds of images overnight to cherrypick from.
@@ -25,6 +26,7 @@ In ComfyUI settings, check "Enable Dev mode Options":
 ![Alt text](misc/dev_opt.png)
 
 ### Download your workflow in API-format
+
 <img src="misc/download.png" width="150">
 
 ### Have running ComfyUI server
