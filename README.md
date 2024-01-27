@@ -5,7 +5,7 @@ I use it to iterate over multiple prompts and key parameters of workflow and get
 
 ## Limitations
 
-This wrapper only calls "/prompt" method to queue prompt. For now there is no way to track the status of prompts or to retrieve the results from the server -- it is possible, but it is simply not needed in my case for now. May be I will add it in future.
+This wrapper only calls "/prompt" method to queue prompt. For now is does not track the status of prompts or retrieve the results from the server. It is possible, but it is simply not needed in my case for now. May be I will add it in future.
 
 Only Basic auth and no auth (for local server) are supported.
 
@@ -31,7 +31,27 @@ In ComfyUI settings, check "Enable Dev mode Options":
 
 ## Use
 
-See [examples](examples/queue_with_different_params.py).
+```python
+from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
+
+# create api wrapper using your ComfyUI url (add user and password params if needed)
+api = ComfyApiWrapper("http://192.168.0.22:8188/")
+
+# create workflow wrapper using your downloaded in api format workflow
+wf = ComfyWorkflowWrapper("workflow_api.json")
+
+# change anything you like in your workflow
+# the syntax is "Node Title", then "Input param name", then value
+wf.set_node_param("Empty Latent Image", "batch_size", 2)
+wf.set_node_param("negative", "text", "embedding:EasyNegative")
+
+# queue your workflow for completion
+api.queue_prompt(wf)
+
+```
+
+See full [example](examples/queue_with_different_params.py).
 
 ## Additional info
-Check out official ComfyUI API examples (no need for this package for them): https://github.com/comfyanonymous/ComfyUI/tree/master/script_examples
+
+Check out official ComfyUI API examples (no need for this package there): https://github.com/comfyanonymous/ComfyUI/tree/master/script_examples
