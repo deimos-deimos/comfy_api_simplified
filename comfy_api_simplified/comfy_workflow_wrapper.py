@@ -20,6 +20,11 @@ class ComfyWorkflowWrapper(dict):
             if node["_meta"]["title"] == title:
                 return node["inputs"][param]
 
+    def get_node_id(self, title: str):
+        for id, node in super().items():
+            if node["_meta"]["title"] == title:
+                return id
+
     def save_to_file(self, path: str):
         workflow_str = json.dumps(self, indent=4)
         with open(path, "w+") as f:
