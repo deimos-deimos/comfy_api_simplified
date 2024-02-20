@@ -1,12 +1,10 @@
 # Comfy API Simplified
 
-This is a little python wrapper over the [ComfyUI](https://github.com/comfyanonymous/ComfyUI) API. It allows you to edit API-format ComfyUI workflows and queue them programmaticaly to the already running ComfyUI.
+This is a small python wrapper over the [ComfyUI](https://github.com/comfyanonymous/ComfyUI) API. It allows you to edit API-format ComfyUI workflows and queue them programmaticaly to the already running ComfyUI.
 
 I use it to iterate over multiple prompts and key parameters of workflow and get hundreds of images overnight to cherrypick from.
 
 ## Limitations
-
-This wrapper only calls "/prompt" method to queue prompt. For now is does not track the status of prompts or retrieve the results from the server. It is possible, but it is simply not needed in my case for now. May be I will add it in future.
 
 Only Basic auth and no auth (for local server) are supported.
 
@@ -48,12 +46,25 @@ wf.set_node_param("Empty Latent Image", "batch_size", 2)
 wf.set_node_param("negative", "text", "embedding:EasyNegative")
 
 # queue your workflow for completion
-api.queue_prompt(wf)
+results = api.queue_and_wait_images(wf, "Save Image")
+for filename, image_data in results.items():
+    with open(f"{filename}", "wb+") as f:
+        f.write(image_data)
 
 ```
 
-See full [example](examples/queue_with_different_params.py).
+More examples:
+
+- Queue prompt and get result images [example](examples/queue_with_different_params.py).
+
+- Queue many prompts and do not wait for completion [example](examples/queue_and_wait_result.py).
+
+- Send input image and then call i2i workflow [example](examples/send_input_image.py).
 
 ## Additional info
 
-Check out official ComfyUI API examples (no need for this package there): https://github.com/comfyanonymous/ComfyUI/tree/master/script_examples
+There are some other approaches to use Python with ComfyUI out there.
+
+If you are looking to conver your workflows to backend server code, check out [ComfyUI-to-Python-Extension](https://github.com/pydn/ComfyUI-to-Python-Extension)
+
+If you are looking to use running ComfyUI as backend, but declare workflow in Python imperatively, check out [ComfyScript](https://github.com/Chaoses-Ib/ComfyScript/tree/main).
