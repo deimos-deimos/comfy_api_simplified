@@ -1,5 +1,12 @@
-certifi==2023.11.17
+certifi==2024.2.2
+cffi==1.16.0
 charset-normalizer==3.3.2
+-e git+https://github.com/deimos-deimos/comfy_api_simplified.git@1757e5f672891639ab316063c7a437cc40b80952#egg=comfy_api_simplified
+cryptography==42.0.3
 idna==3.6
+pycparser==2.21
+pyOpenSSL==24.0.0
+rel==0.4.9.6
 requests==2.31.0
-urllib3==2.1.0
+urllib3==2.2.0
+websockets==12.0
