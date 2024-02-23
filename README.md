@@ -68,3 +68,15 @@ There are some other approaches to use Python with ComfyUI out there.
 If you are looking to conver your workflows to backend server code, check out [ComfyUI-to-Python-Extension](https://github.com/pydn/ComfyUI-to-Python-Extension)
 
 If you are looking to use running ComfyUI as backend, but declare workflow in Python imperatively, check out [ComfyScript](https://github.com/Chaoses-Ib/ComfyScript/tree/main).
+
+## Known issues
+
+If you try to run queue_and_wait_images in async method, it may give you an error since there is already async code inside.
+As a workaround, you can use
+
+```python
+import nest_asyncio
+nest_asyncio.apply()
+```
+
+for now.

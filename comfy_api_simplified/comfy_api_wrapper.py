@@ -88,7 +88,7 @@ class ComfyApiWrapper:
                     message = json.loads(out)
                     if message["type"] == "crystools.monitor":
                         continue
-                    logger.info(message)
+                    logger.debug(message)
                     if message["type"] == "execution_error":
                         data = message["data"]
                         if data["prompt_id"] == prompt_id:
