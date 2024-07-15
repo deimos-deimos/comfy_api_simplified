@@ -8,7 +8,7 @@ from requests.auth import HTTPBasicAuth
 from requests.compat import urljoin, urlencode
 from comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 class ComfyApiWrapper:
     def __init__(self, url: str = "http://127.0.0.1:8188", user: str = "", password: str = ""):
@@ -54,9 +54,9 @@ class ComfyApiWrapper:
         if client_id:
             p["client_id"] = client_id
         data = json.dumps(p).encode("utf-8")
-        logger.info(f"Posting prompt to {self.url}/prompt")
+        _log.info(f"Posting prompt to {self.url}/prompt")
         resp = requests.post(urljoin(self.url, "/prompt"), data=data, auth=self.auth)
-        logger.info(f"{resp.status_code}: {resp.reason}")
+        _log.info(f"{resp.status_code}: {resp.reason}")
         if resp.status_code == 200:
             return resp.json()
         else:
@@ -77,9 +77,9 @@ class ComfyApiWrapper:
         """
         client_id = str(uuid.uuid4())
         resp = self.queue_prompt(prompt, client_id)
-        print(resp)
+        _log.debug(resp)
         prompt_id = resp["prompt_id"]
-        logger.info(f"Connecting to {self.ws_url.format(client_id).split('@')[-1]}")
+        _log.info(f"Connecting to {self.ws_url.format(client_id).split('@')[-1]}")
         async with websockets.connect(uri=self.ws_url.format(client_id)) as websocket:
             while True:
                 # out = ws.recv()
@@ -88,7 +88,7 @@ class ComfyApiWrapper:
                     message = json.loads(out)
                     if message["type"] == "crystools.monitor":
                         continue
-                    logger.debug(message)
+                    _log.debug(message)
                     if message["type"] == "execution_error":
                         data = message["data"]
                         if data["prompt_id"] == prompt_id:
@@ -143,7 +143,7 @@ class ComfyApiWrapper:
             Exception: If the request fails with a non-200 status code.
         """
         url = urljoin(self.url, f"/history/{prompt_id}")
-        logger.info(f"Getting history from {url}")
+        _log.info(f"Getting history from {url}")
         resp = requests.get(url, auth=self.auth)
         if resp.status_code == 200:
             return resp.json()
@@ -167,9 +167,9 @@ class ComfyApiWrapper:
         """
         params = {"filename": filename, "subfolder": subfolder, "type": folder_type}
         url = urljoin(self.url, f"/view?{urlencode(params)}")
-        logger.info(f"Getting image from {url}")
+        _log.info(f"Getting image from {url}")
         resp = requests.get(url, auth=self.auth)
-        logger.info(f"{resp.status_code}: {resp.reason}")
+        _log.debug(f"{resp.status_code}: {resp.reason}")
         if resp.status_code == 200:
             return resp.content
         else:
@@ -193,9 +193,9 @@ class ComfyApiWrapper:
         serv_file = filename.split("/")[-1]
         data = {"subfolder": subfolder}
         files = {"image": (serv_file, open(filename, "rb"))}
-        logger.info(f"Posting {filename} to {url} with data {data}")
+        _log.info(f"Posting {filename} to {url} with data {data}")
         resp = requests.post(url, files=files, data=data, auth=self.auth)
-        logger.info(f"{resp.status_code}: {resp.reason}, {resp.text}")
+        _log.debug(f"{resp.status_code}: {resp.reason}, {resp.text}")
         if resp.status_code == 200:
             return resp.json()
         else:
