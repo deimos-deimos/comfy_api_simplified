@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, List
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 class ComfyWorkflowWrapper(dict):
     def __init__(self, path: str):
@@ -41,7 +41,7 @@ class ComfyWorkflowWrapper(dict):
         smth_changed = False
         for node in super().values():
             if node["_meta"]["title"] == title:
-                logger.info(f"Setting parameter '{param}' of node '{title}' to '{value}'")
+                _log.info(f"Setting parameter '{param}' of node '{title}' to '{value}'")
                 node["inputs"][param] = value
                 smth_changed = True
         if not smth_changed:
