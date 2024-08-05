@@ -7,6 +7,7 @@ import asyncio
 from requests.auth import HTTPBasicAuth
 from requests.compat import urljoin, urlencode
 from comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
+import os
 
 _log = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class ComfyApiWrapper:
             ws_url_base = f"{ws_protocol}://{url_without_protocol}"
         self.ws_url = urljoin(ws_url_base, "/ws?clientId={}")
 
-    def queue_prompt(self, prompt: dict, client_id: str = None) -> dict:
+    def queue_prompt(self, prompt: dict, client_id: str | None = None) -> dict:
         """
         Queues a prompt for execution.
 
@@ -168,6 +169,7 @@ class ComfyApiWrapper:
 
         Raises:
             Exception: If the request fails with a non-200 status code.
+            ValueError: If prompt_id is not in the queue.
         """
         resp = self.get_queue()
         for elem in resp["queue_running"]:
@@ -179,6 +181,7 @@ class ComfyApiWrapper:
             if elem[1] == prompt_id:
                 return result
             result = result + 1
+        raise ValueError("prompt_id is not in the queue")
 
     def get_history(self, prompt_id: str) -> dict:
         """
@@ -247,7 +250,7 @@ class ComfyApiWrapper:
             Exception: If the request fails with a non-200 status code.
         """
         url = urljoin(self.url, "/upload/image")
-        serv_file = filename.split("/")[-1]
+        serv_file = os.path.basename(filename)
         data = {"subfolder": subfolder}
         files = {"image": (serv_file, open(filename, "rb"))}
         _log.info(f"Posting {filename} to {url} with data {data}")
