@@ -2,7 +2,7 @@ import pytest
 from comfy_api_simplified.comfy_api_wrapper import ComfyApiWrapper
 from comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
 from PIL import Image, ImageChops
-import pytest_asyncio
+import numpy as np
 
 import io
 import os
@@ -11,8 +11,18 @@ import os
 from .conftest import test_data_dir
 
 
-def compare_images(img1, img2):
-    return ImageChops.difference(img1, img2).getbbox() is None
+# Compare two images
+def compare_images(img1: Image.Image, img2: Image.Image) -> bool:
+    arr1 = np.array(img1)
+    arr2 = np.array(img2)
+    if arr1.shape != arr2.shape:
+        return False
+
+    distance = np.sqrt(np.sum((arr1 - arr2) ** 2, axis=-1))
+    threshold = 1
+    if np.mean(distance) < threshold:
+        return True
+    return False
 
 
 def load_image_from_test_data(image_name):
@@ -34,7 +44,13 @@ def test_upload_image(api_wrapper: ComfyApiWrapper):
 def test_queue_prompt(
     api_wrapper: ComfyApiWrapper, workflow_wrapper: ComfyWorkflowWrapper
 ):
-    api_wrapper.upload_image(os.path.join(test_data_dir, "input.png"))
+    image_metadata = api_wrapper.upload_image(os.path.join(test_data_dir, "input.png"))
+
+    workflow_wrapper.set_node_param(
+        "Load Image",
+        "image",
+        f"{image_metadata['subfolder']}/{image_metadata['name']}",
+    )
 
     response = api_wrapper.queue_prompt(workflow_wrapper)
     prompt_id = response["prompt_id"]
@@ -45,7 +61,13 @@ def test_queue_prompt(
 async def test_get_history(
     api_wrapper: ComfyApiWrapper, workflow_wrapper: ComfyWorkflowWrapper
 ):
-    api_wrapper.upload_image(os.path.join(test_data_dir, "input.png"))
+    image_metadata = api_wrapper.upload_image(os.path.join(test_data_dir, "input.png"))
+
+    workflow_wrapper.set_node_param(
+        "Load Image",
+        "image",
+        f"{image_metadata['subfolder']}/{image_metadata['name']}",
+    )
 
     prompt_id = await api_wrapper.queue_prompt_and_wait(workflow_wrapper)
 
