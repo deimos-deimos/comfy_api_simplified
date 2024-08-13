@@ -1,0 +1,4 @@
+pytest
+Pillow
+pytest-asyncio
+numpy
