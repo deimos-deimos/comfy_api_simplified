@@ -109,7 +109,7 @@ class ComfyApiWrapper:
                             return prompt_id
 
     def queue_and_wait_images(
-        self, prompt: ComfyWorkflowWrapper, output_node_title: str
+        self, prompt: ComfyWorkflowWrapper, output_node_title: str, loop:asyncio.BaseEventLoop = asyncio.get_event_loop()
     ) -> dict:
         """
         Queues a prompt with a ComfyWorkflowWrapper object and waits for the images to be generated.
@@ -125,7 +125,6 @@ class ComfyApiWrapper:
             Exception: If the request fails with a non-200 status code.
         """
 
-        loop = asyncio.get_event_loop()
         prompt_id = loop.run_until_complete(self.queue_prompt_and_wait(prompt))
         history = self.get_history(prompt_id)
         image_node_id = prompt.get_node_id(output_node_title)
