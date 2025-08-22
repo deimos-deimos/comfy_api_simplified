@@ -128,7 +128,17 @@ class ComfyApiWrapper:
         prompt_id = loop.run_until_complete(self.queue_prompt_and_wait(prompt))
         history = self.get_history(prompt_id)
         image_node_id = prompt.get_node_id(output_node_title)
-        images = history[prompt_id]["outputs"][image_node_id]["images"]
+        result_node = history[prompt_id]["outputs"][image_node_id]
+
+        def custom_node_result():
+            match result_node:
+                case {"images": images}:
+                    return images
+                case {"gifs": gifs}:
+                    return gifs
+
+        images = custom_node_result()
+
         return {
             image["filename"]: self.get_image(
                 image["filename"], image["subfolder"], image["type"]
