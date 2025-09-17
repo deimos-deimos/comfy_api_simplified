@@ -136,6 +136,8 @@ class ComfyApiWrapper:
                     return images
                 case {"gifs": gifs}:
                     return gifs
+                case {"audio": audio}:
+                    return audio
 
         images = custom_node_result()
 
