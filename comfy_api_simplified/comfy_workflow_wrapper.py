@@ -12,7 +12,7 @@ class ComfyWorkflowWrapper(dict):
         Args:
             path (str): The path to the workflow file.
         """
-        with open(path) as f:
+        with open(path, 'r', encoding='utf-8') as f:
             workflow_str = f.read()
         super().__init__(json.loads(workflow_str))
 
