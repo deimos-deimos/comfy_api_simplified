@@ -1,20 +1,23 @@
 import json
 import logging
-from typing import Any, List
+from typing import Any, List, Union
 
 _log = logging.getLogger(__name__)
 
 class ComfyWorkflowWrapper(dict):
-    def __init__(self, path: str):
+    def __init__(self, path_or_obj: Union[str, dict]):
         """
         Initialize the ComfyWorkflowWrapper object.
 
         Args:
-            path (str): The path to the workflow file.
+            path_or_obj (str | dict): The path to the workflow file, or dict object.
         """
-        with open(path, 'r', encoding='utf-8') as f:
-            workflow_str = f.read()
-        super().__init__(json.loads(workflow_str))
+        if isinstance(path_or_obj, str):
+            with open(path_or_obj, 'r', encoding='utf-8') as f:
+                obj = json.load(f)
+        else:
+            obj = path_or_obj
+        super().__init__(obj)
 
     def list_nodes(self) -> List[str]:
         """
