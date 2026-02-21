@@ -4,6 +4,7 @@ import uuid
 import logging
 import websockets
 import asyncio
+from typing import Tuple, List
 from requests.auth import HTTPBasicAuth
 from requests.compat import urljoin, urlencode
 from comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
@@ -68,7 +69,7 @@ class ComfyApiWrapper:
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )
 
-    async def queue_prompt_and_wait(self, prompt: dict) -> str:
+    async def queue_prompt_and_wait(self, prompt: dict) -> Tuple[str, List[bytes]]:
         """
         Queues a prompt for execution and waits for the result.
 
@@ -77,6 +78,7 @@ class ComfyApiWrapper:
 
         Returns:
             str: The prompt ID.
+            List[bytes]: Images.
 
         Raises:
             Exception: If an execution error occurs.
@@ -86,7 +88,8 @@ class ComfyApiWrapper:
         _log.debug(resp)
         prompt_id = resp["prompt_id"]
         _log.info(f"Connecting to {self.ws_url.format(client_id).split('@')[-1]}")
-        async with websockets.connect(uri=self.ws_url.format(client_id)) as websocket:
+        images = []
+        async with websockets.connect(uri=self.ws_url.format(client_id), max_size=None) as websocket:
             while True:
                 # out = ws.recv()
                 out = await websocket.recv()
@@ -102,11 +105,16 @@ class ComfyApiWrapper:
                     if message["type"] == "status":
                         data = message["data"]
                         if data["status"]["exec_info"]["queue_remaining"] == 0:
-                            return prompt_id
+                            return prompt_id, images
                     if message["type"] == "executing":
                         data = message["data"]
                         if data["node"] is None and data["prompt_id"] == prompt_id:
-                            return prompt_id
+                            return prompt_id, images
+                elif isinstance(out, bytes):
+                    _log.debug('websocket recv image')
+                    images.append(out[8:])
+                else:
+                    raise Exception('unexpected message type')
 
     def queue_and_wait_images(
         self, prompt: ComfyWorkflowWrapper, output_node_title: str, loop:asyncio.BaseEventLoop = asyncio.get_event_loop()
@@ -125,7 +133,9 @@ class ComfyApiWrapper:
             Exception: If the request fails with a non-200 status code.
         """
 
-        prompt_id = loop.run_until_complete(self.queue_prompt_and_wait(prompt))
+        prompt_id, images = loop.run_until_complete(self.queue_prompt_and_wait(prompt))
+        if images:
+            return {str(i): img for i, img in enumerate(images)}
         history = self.get_history(prompt_id)
         image_node_id = prompt.get_node_id(output_node_title)
         result_node = history[prompt_id]["outputs"][image_node_id]
