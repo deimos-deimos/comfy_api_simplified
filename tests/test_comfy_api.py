@@ -1,3 +1,4 @@
+import json
 import pytest
 from comfy_api_simplified.comfy_api_wrapper import ComfyApiWrapper
 from comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
@@ -69,7 +70,7 @@ async def test_get_history(
         f"{image_metadata['subfolder']}/{image_metadata['name']}",
     )
 
-    prompt_id = await api_wrapper.queue_prompt_and_wait(workflow_wrapper)
+    prompt_id, images = await api_wrapper.queue_prompt_and_wait(workflow_wrapper)
 
     try:
         response = api_wrapper.get_history(prompt_id)
@@ -77,6 +78,56 @@ async def test_get_history(
         pytest.fail("Unexpected error")
 
     assert response
+
+
+def test_workflow_wrapper_from_dict(workflow_wrapper: ComfyWorkflowWrapper):
+    """Test that ComfyWorkflowWrapper can be initialized from a dict (PR #16 feature)."""
+    with open(os.path.join(test_data_dir, "workflow_api.json"), "r", encoding="utf-8") as f:
+        workflow_dict = json.load(f)
+
+    wrapper = ComfyWorkflowWrapper(workflow_dict)
+    assert wrapper.list_nodes() == workflow_wrapper.list_nodes()
+    assert dict(wrapper) == dict(workflow_wrapper)
+
+
+@pytest.mark.asyncio
+async def test_queue_prompt_and_wait_returns_tuple(
+    api_wrapper: ComfyApiWrapper, workflow_wrapper: ComfyWorkflowWrapper
+):
+    """Test that queue_prompt_and_wait returns a (prompt_id, images) tuple (PR #16)."""
+    image_metadata = api_wrapper.upload_image(os.path.join(test_data_dir, "input.png"))
+    workflow_wrapper.set_node_param(
+        "Load Image",
+        "image",
+        f"{image_metadata['subfolder']}/{image_metadata['name']}",
+    )
+
+    result = await api_wrapper.queue_prompt_and_wait(workflow_wrapper)
+    assert isinstance(result, tuple) and len(result) == 2, "Should return a 2-tuple"
+    prompt_id, images = result
+    assert isinstance(prompt_id, str) and prompt_id, "prompt_id should be a non-empty string"
+    assert isinstance(images, list), "images should be a list"
+    for img_bytes in images:
+        assert isinstance(img_bytes, bytes), "each image should be bytes"
+
+
+def test_queue_and_wait_images(
+    api_wrapper: ComfyApiWrapper, workflow_wrapper: ComfyWorkflowWrapper
+):
+    """Test that queue_and_wait_images returns a dict of images (PR #16)."""
+    image_metadata = api_wrapper.upload_image(os.path.join(test_data_dir, "input.png"))
+    workflow_wrapper.set_node_param(
+        "Load Image",
+        "image",
+        f"{image_metadata['subfolder']}/{image_metadata['name']}",
+    )
+
+    result = api_wrapper.queue_and_wait_images(workflow_wrapper, "Save Image")
+    assert isinstance(result, dict), "Should return a dict"
+    assert len(result) > 0, "Should return at least one image"
+    for key, img_bytes in result.items():
+        assert isinstance(img_bytes, bytes), f"Image '{key}' should be bytes"
+        assert len(img_bytes) > 0, f"Image '{key}' should not be empty"
 
 
 def test_negative_set_node_param(workflow_wrapper: ComfyWorkflowWrapper):
@@ -105,7 +156,7 @@ async def test_get_image(
         f"{image_metadata['subfolder']}/{image_metadata['name']}",
     )
 
-    prompt_id = await api_wrapper.queue_prompt_and_wait(workflow_wrapper)
+    prompt_id, images = await api_wrapper.queue_prompt_and_wait(workflow_wrapper)
     response = api_wrapper.get_history(prompt_id)
 
     print(response[prompt_id]["outputs"]["9"]["images"][0])
