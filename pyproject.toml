@@ -9,7 +9,7 @@ exclude = [
 
 [project]
 name = "comfy_api_simplified"
-version = "1.4.3"
+version = "1.5.0"
 authors = [
   { name="Deimos Deimos", email="deimos.double@gmail.com" },
 ]
@@ -17,7 +17,8 @@ description = "A simple way to schedule ComfyUI prompts with different parameter
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-  "requests"
+  "requests",
+  "websockets"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

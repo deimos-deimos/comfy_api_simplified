@@ -1,19 +1,23 @@
 import json
 import logging
+import warnings
+from pathlib import Path
 from typing import Any, List, Union
+
+from comfy_api_simplified.exceptions import NodeNotFoundError
 
 _log = logging.getLogger(__name__)
 
 class ComfyWorkflowWrapper(dict):
-    def __init__(self, path_or_obj: Union[str, dict]):
+    def __init__(self, path_or_obj: Union[str, Path, dict]) -> None:
         """
         Initialize the ComfyWorkflowWrapper object.
 
         Args:
-            path_or_obj (str | dict): The path to the workflow file, or dict object.
+            path_or_obj (str | Path | dict): The path to the workflow file, or dict object.
         """
-        if isinstance(path_or_obj, str):
-            with open(path_or_obj, 'r', encoding='utf-8') as f:
+        if isinstance(path_or_obj, (str, Path)):
+            with Path(path_or_obj).open('r', encoding='utf-8') as f:
                 obj = json.load(f)
         else:
             obj = path_or_obj
@@ -28,10 +32,11 @@ class ComfyWorkflowWrapper(dict):
         """
         return [node["_meta"]["title"] for node in super().values()]
 
-    def set_node_param(self, title: str, param: str, value):
+    def set_node_param(self, title: str, param: str, value: Any) -> None:
         """
         Set the value of a parameter for a specific node.
         Mind that this method will change parameters for ALL nodes with the same title.
+        If more than one node shares the title, a UserWarning is emitted.
 
         Args:
             title (str): The title of the node.
@@ -39,16 +44,22 @@ class ComfyWorkflowWrapper(dict):
             value: The value to set.
 
         Raises:
-            ValueError: If the node is not found.
+            NodeNotFoundError: If the node is not found.
         """
-        smth_changed = False
+        nodes_changed = 0
         for node in super().values():
             if node["_meta"]["title"] == title:
                 _log.info(f"Setting parameter '{param}' of node '{title}' to '{value}'")
                 node["inputs"][param] = value
-                smth_changed = True
-        if not smth_changed:
-            raise ValueError(f"Node '{title}' not found.")
+                nodes_changed += 1
+        if nodes_changed == 0:
+            raise NodeNotFoundError(f"Node '{title}' not found.")
+        if nodes_changed > 1:
+            warnings.warn(
+                f"set_node_param: {nodes_changed} nodes share the title '{title}'; "
+                "all were updated. Use unique node titles to avoid ambiguity.",
+                stacklevel=2,
+            )
 
     def get_node_param(self, title: str, param: str) -> Any:
         """
@@ -63,38 +74,38 @@ class ComfyWorkflowWrapper(dict):
             The value of the parameter.
 
         Raises:
-            ValueError: If the node is not found.
+            NodeNotFoundError: If the node is not found.
         """
         for node in super().values():
             if node["_meta"]["title"] == title:
                 return node["inputs"][param]
-        raise ValueError(f"Node '{title}' not found.")
+        raise NodeNotFoundError(f"Node '{title}' not found.")
 
     def get_node_id(self, title: str) -> str:
-            """
-            Get the ID of a specific node.
+        """
+        Get the ID of a specific node.
 
-            Args:
-                title (str): The title of the node.
+        Args:
+            title (str): The title of the node.
 
-            Returns:
-                str: The ID of the node.
+        Returns:
+            str: The ID of the node.
 
-            Raises:
-                ValueError: If the node is not found.
-            """
-            for id, node in super().items():
-                if node["_meta"]["title"] == title:
-                    return id
-            raise ValueError(f"Node '{title}' not found.")
+        Raises:
+            NodeNotFoundError: If the node is not found.
+        """
+        for id, node in super().items():
+            if node["_meta"]["title"] == title:
+                return id
+        raise NodeNotFoundError(f"Node '{title}' not found.")
 
-    def save_to_file(self, path: str):
+    def save_to_file(self, path: Union[str, Path]) -> None:
         """
         Save the workflow to a file.
 
         Args:
-            path (str): The path to save the workflow file.
+            path (str | Path): The path to save the workflow file.
         """
         workflow_str = json.dumps(self, indent=4)
-        with open(path, "w+") as f:
+        with Path(path).open("w+", encoding="utf-8") as f:
             f.write(workflow_str)

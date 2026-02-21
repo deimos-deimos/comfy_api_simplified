@@ -4,7 +4,7 @@ from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-api = ComfyApiWrapper("http://192.168.0.22:8188/")
+api = ComfyApiWrapper("http://192.168.31.156:8188")
 # api = ComfyApiWrapper("https://smth.com/", user="user", password="password")
 
 wf = ComfyWorkflowWrapper("examples/workflow_api_i2i.json")

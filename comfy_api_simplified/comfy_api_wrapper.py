@@ -4,19 +4,24 @@ import uuid
 import logging
 import websockets
 import asyncio
-from typing import Tuple, List
+from pathlib import Path
+from typing import Optional, Tuple, List, Union
 from requests.auth import HTTPBasicAuth
 from requests.compat import urljoin, urlencode
 from comfy_api_simplified.comfy_workflow_wrapper import ComfyWorkflowWrapper
-import os
+from comfy_api_simplified.exceptions import ComfyApiError
 
 _log = logging.getLogger(__name__)
 
 
 class ComfyApiWrapper:
     def __init__(
-        self, url: str = "http://127.0.0.1:8188", user: str = "", password: str = ""
-    ):
+        self,
+        url: str = "http://127.0.0.1:8188",
+        user: str = "",
+        password: str = "",
+        ws_max_size: Optional[int] = None,
+    ) -> None:
         """
         Initializes the ComfyApiWrapper object.
 
@@ -24,9 +29,13 @@ class ComfyApiWrapper:
             url (str): The URL of the Comfy API server. Defaults to "http://127.0.0.1:8188".
             user (str): The username for authentication. Defaults to an empty string.
             password (str): The password for authentication. Defaults to an empty string.
+            ws_max_size (int | None): Maximum WebSocket message size in bytes. Defaults to
+                None (unlimited), which is required for workflows that return large images
+                directly over the WebSocket connection.
         """
         self.url = url
         self.auth = None
+        self.ws_max_size = ws_max_size
         url_without_protocol = url.split("//")[-1]
 
         if "https" in url:
@@ -41,7 +50,7 @@ class ComfyApiWrapper:
             ws_url_base = f"{ws_protocol}://{url_without_protocol}"
         self.ws_url = urljoin(ws_url_base, "/ws?clientId={}")
 
-    def queue_prompt(self, prompt: dict, client_id: str | None = None) -> dict:
+    def queue_prompt(self, prompt: dict, client_id: Optional[str] = None) -> dict:
         """
         Queues a prompt for execution.
 
@@ -53,7 +62,7 @@ class ComfyApiWrapper:
             dict: The response JSON object.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
         """
         p = {"prompt": prompt}
         if client_id:
@@ -65,7 +74,7 @@ class ComfyApiWrapper:
         if resp.status_code == 200:
             return resp.json()
         else:
-            raise Exception(
+            raise ComfyApiError(
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )
 
@@ -81,7 +90,7 @@ class ComfyApiWrapper:
             List[bytes]: Images.
 
         Raises:
-            Exception: If an execution error occurs.
+            ComfyApiError: If an execution error occurs or an unexpected message type is received.
         """
         client_id = str(uuid.uuid4())
         resp = self.queue_prompt(prompt, client_id)
@@ -89,19 +98,23 @@ class ComfyApiWrapper:
         prompt_id = resp["prompt_id"]
         _log.info(f"Connecting to {self.ws_url.format(client_id).split('@')[-1]}")
         images = []
-        async with websockets.connect(uri=self.ws_url.format(client_id), max_size=None) as websocket:
+        async with websockets.connect(
+            uri=self.ws_url.format(client_id), max_size=self.ws_max_size
+        ) as websocket:
             while True:
-                # out = ws.recv()
                 out = await websocket.recv()
                 if isinstance(out, str):
                     message = json.loads(out)
                     if message["type"] == "crystools.monitor":
+                        # crystools is a popular ComfyUI monitoring extension that
+                        # broadcasts hardware stats over the shared WebSocket;
+                        # skip these irrelevant messages.
                         continue
                     _log.debug(message)
                     if message["type"] == "execution_error":
                         data = message["data"]
                         if data["prompt_id"] == prompt_id:
-                            raise Exception("Execution error occurred.")
+                            raise ComfyApiError("Execution error occurred.")
                     if message["type"] == "status":
                         data = message["data"]
                         if data["status"]["exec_info"]["queue_remaining"] == 0:
@@ -114,10 +127,10 @@ class ComfyApiWrapper:
                     _log.debug('websocket recv image')
                     images.append(out[8:])
                 else:
-                    raise Exception('unexpected message type')
+                    raise ComfyApiError('unexpected message type')
 
     def queue_and_wait_images(
-        self, prompt: ComfyWorkflowWrapper, output_node_title: str, loop:asyncio.BaseEventLoop = asyncio.get_event_loop()
+        self, prompt: ComfyWorkflowWrapper, output_node_title: str
     ) -> dict:
         """
         Queues a prompt with a ComfyWorkflowWrapper object and waits for the images to be generated.
@@ -130,10 +143,9 @@ class ComfyApiWrapper:
             dict: A dictionary mapping image filenames to their content.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
         """
-
-        prompt_id, images = loop.run_until_complete(self.queue_prompt_and_wait(prompt))
+        prompt_id, images = asyncio.run(self.queue_prompt_and_wait(prompt))
         if images:
             return {str(i): img for i, img in enumerate(images)}
         history = self.get_history(prompt_id)
@@ -166,7 +178,7 @@ class ComfyApiWrapper:
             dict: The response JSON object.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
         """
         url = urljoin(self.url, f"/queue")
         _log.info(f"Getting queue from {url}")
@@ -174,7 +186,7 @@ class ComfyApiWrapper:
         if resp.status_code == 200:
             return resp.json()
         else:
-            raise Exception(
+            raise ComfyApiError(
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )
 
@@ -189,7 +201,7 @@ class ComfyApiWrapper:
             int: The number of prompt in the queue before the prompt, 0 means the prompt is running.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
             ValueError: If prompt_id is not in the queue.
         """
         resp = self.get_queue()
@@ -215,7 +227,7 @@ class ComfyApiWrapper:
             dict: The response JSON object.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
         """
         url = urljoin(self.url, f"/history/{prompt_id}")
         _log.info(f"Getting history from {url}")
@@ -223,7 +235,7 @@ class ComfyApiWrapper:
         if resp.status_code == 200:
             return resp.json()
         else:
-            raise Exception(
+            raise ComfyApiError(
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )
 
@@ -240,7 +252,7 @@ class ComfyApiWrapper:
             bytes: The content of the image.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
         """
         params = {"filename": filename, "subfolder": subfolder, "type": folder_type}
         url = urljoin(self.url, f"/view?{urlencode(params)}")
@@ -250,36 +262,37 @@ class ComfyApiWrapper:
         if resp.status_code == 200:
             return resp.content
         else:
-            raise Exception(
+            raise ComfyApiError(
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )
 
     def upload_image(
-        self, filename: str, subfolder: str = "default_upload_folder"
+        self, filename: Union[str, Path], subfolder: str = "default_upload_folder"
     ) -> dict:
         """
         Uploads an image to the Comfy API server.
 
         Args:
-            filename (str): The filename of the image.
+            filename (str | Path): The path to the image file.
             subfolder (str): The subfolder to upload the image to. Defaults to "default_upload_folder".
 
         Returns:
             dict: The response JSON object.
 
         Raises:
-            Exception: If the request fails with a non-200 status code.
+            ComfyApiError: If the request fails with a non-200 status code.
         """
         url = urljoin(self.url, "/upload/image")
-        serv_file = os.path.basename(filename)
+        serv_file = Path(filename).name
         data = {"subfolder": subfolder}
-        files = {"image": (serv_file, open(filename, "rb"))}
         _log.info(f"Posting {filename} to {url} with data {data}")
-        resp = requests.post(url, files=files, data=data, auth=self.auth)
+        with open(filename, "rb") as f:
+            files = {"image": (serv_file, f)}
+            resp = requests.post(url, files=files, data=data, auth=self.auth)
         _log.debug(f"{resp.status_code}: {resp.reason}, {resp.text}")
         if resp.status_code == 200:
             return resp.json()
         else:
-            raise Exception(
+            raise ComfyApiError(
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )
