@@ -26,6 +26,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+mcp = ["fastmcp"]
+
+[project.scripts]
+comfy-mcp-server = "comfy_api_simplified.mcp_server:main"
+
 [project.urls]
 Homepage = "https://github.com/deimos-deimos/comfy_api_simplified"
 Issues = "https://github.com/deimos-deimos/comfy_api_simplified/issues"
