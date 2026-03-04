@@ -133,18 +133,21 @@ class ComfyApiWrapper:
         self, prompt: ComfyWorkflowWrapper, output_node_title: str
     ) -> dict:
         """
-        Queues a prompt with a ComfyWorkflowWrapper object and waits for the images to be generated.
+        Queues a prompt and waits for the images to be generated.
 
         Args:
-            prompt (ComfyWorkflowWrapper): The ComfyWorkflowWrapper object representing the prompt.
-            output_node_title (str): The title of the output node.
+            prompt (ComfyWorkflowWrapper | dict): The workflow. A plain dict is accepted
+                and automatically wrapped in ComfyWorkflowWrapper.
+            output_node_title (str): The title of the output node (e.g. 'Save Image').
 
         Returns:
-            dict: A dictionary mapping image filenames to their content.
+            dict: A dictionary mapping image filenames to their content (bytes).
 
         Raises:
             ComfyApiError: If the request fails with a non-200 status code.
         """
+        if not isinstance(prompt, ComfyWorkflowWrapper):
+            prompt = ComfyWorkflowWrapper(prompt)
         prompt_id, images = asyncio.run(self.queue_prompt_and_wait(prompt))
         if images:
             return {str(i): img for i, img in enumerate(images)}
@@ -262,6 +265,88 @@ class ComfyApiWrapper:
         if resp.status_code == 200:
             return resp.content
         else:
+            raise ComfyApiError(
+                f"Request failed with status code {resp.status_code}: {resp.reason}"
+            )
+
+    def get_object_info(self, node_type: Optional[str] = None) -> dict:
+        """
+        Retrieves available node class types with their input/output schemas.
+
+        Args:
+            node_type (str | None): If provided, fetch info for a single node class.
+                Defaults to None, which fetches info for all available node classes.
+
+        Returns:
+            dict: Mapping of node class name -> schema dict.
+
+        Raises:
+            ComfyApiError: If the request fails with a non-200 status code.
+        """
+        if node_type:
+            url = urljoin(self.url, f"/object_info/{node_type}")
+        else:
+            url = urljoin(self.url, "/object_info")
+        _log.info(f"Getting object info from {url}")
+        resp = requests.get(url, auth=self.auth)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            raise ComfyApiError(
+                f"Request failed with status code {resp.status_code}: {resp.reason}"
+            )
+
+    def get_system_stats(self) -> dict:
+        """
+        Retrieves system resource statistics from the ComfyUI server.
+
+        Returns:
+            dict: System stats including GPU memory, CPU, and RAM info.
+
+        Raises:
+            ComfyApiError: If the request fails with a non-200 status code.
+        """
+        url = urljoin(self.url, "/system_stats")
+        _log.info(f"Getting system stats from {url}")
+        resp = requests.get(url, auth=self.auth)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            raise ComfyApiError(
+                f"Request failed with status code {resp.status_code}: {resp.reason}"
+            )
+
+    def get_embeddings(self) -> list:
+        """
+        Retrieves a list of available text embeddings from the ComfyUI server.
+
+        Returns:
+            list: List of embedding names available for use in text prompts.
+
+        Raises:
+            ComfyApiError: If the request fails with a non-200 status code.
+        """
+        url = urljoin(self.url, "/embeddings")
+        _log.info(f"Getting embeddings from {url}")
+        resp = requests.get(url, auth=self.auth)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            raise ComfyApiError(
+                f"Request failed with status code {resp.status_code}: {resp.reason}"
+            )
+
+    def interrupt(self) -> None:
+        """
+        Sends an interrupt signal to stop the currently executing generation.
+
+        Raises:
+            ComfyApiError: If the request fails with a non-200 status code.
+        """
+        url = urljoin(self.url, "/interrupt")
+        _log.info(f"Posting interrupt to {url}")
+        resp = requests.post(url, auth=self.auth)
+        if resp.status_code != 200:
             raise ComfyApiError(
                 f"Request failed with status code {resp.status_code}: {resp.reason}"
             )

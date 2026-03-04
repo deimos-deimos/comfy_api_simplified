@@ -9,7 +9,7 @@ exclude = [
 
 [project]
 name = "comfy_api_simplified"
-version = "1.5.0"
+version = "1.6.0"
 authors = [
   { name="Deimos Deimos", email="deimos.double@gmail.com" },
 ]
@@ -25,6 +25,12 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.optional-dependencies]
+mcp = ["fastmcp"]
+
+[project.scripts]
+comfy-mcp-server = "comfy_api_simplified.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/deimos-deimos/comfy_api_simplified"

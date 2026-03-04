@@ -10,7 +10,10 @@ Only Basic auth and no auth (for local server) are supported.
 
 ## Install
 
-`pip3 install comfy_api_simplified`
+```bash
+pip install comfy_api_simplified          # core library
+pip install comfy_api_simplified[mcp]     # + MCP server for AI agents
+```
 
 ## Use prerequisits
 
@@ -60,6 +63,56 @@ More examples:
 - Queue many prompts and do not wait for completion [example](examples/queue_and_wait_result.py).
 
 - Send input image and then call i2i workflow [example](examples/send_input_image.py).
+
+## MCP Server (for AI agents)
+
+The package ships an [MCP](https://modelcontextprotocol.io) server that lets AI agents (Claude, Cursor, etc.) discover nodes and models, build workflows, and run them — all via tool calls.
+
+### Start the server
+
+```bash
+# point at your ComfyUI instance
+COMFY_URL=http://192.168.1.x:8188 comfy-mcp-server
+
+# with auth and a custom output directory
+COMFY_URL=https://myserver.com COMFY_USER=user COMFY_PASSWORD=pass \
+COMFY_OUTPUT_DIR=~/comfy_outputs comfy-mcp-server
+```
+
+The server uses stdio transport (compatible with Claude Desktop, Cursor, and any MCP client).
+
+### Available tools
+
+| Category | Tool | Description |
+| -------- | ---- | ----------- |
+| Discovery | `list_node_types` | All node class names available in ComfyUI |
+| Discovery | `get_node_type_info` | Inputs, types, defaults for a node class |
+| Discovery | `list_models` | Checkpoints, LoRAs, VAEs, etc. grouped by type |
+| Discovery | `get_system_stats` | GPU VRAM, RAM, Python version |
+| Discovery | `list_embeddings` | Available text embeddings |
+| Workflow | `load_workflow` | Load a workflow JSON file into a dict |
+| Workflow | `list_nodes` | List nodes (id, title, class_type) in a workflow |
+| Workflow | `set_node_param` | Set a node parameter, returns updated workflow |
+| Workflow | `get_node_param` | Read a node parameter value |
+| Execution | `upload_image` | Upload a local image, returns server path |
+| Execution | `run_workflow` | Run a workflow, save output images, return paths |
+| Execution | `get_queue_status` | Running/pending queue counts |
+| Execution | `interrupt_execution` | Stop the current generation |
+
+Workflow tools are **stateless** — the workflow dict is passed in and returned on every call. Chain `set_node_param` calls to configure a workflow, then pass it to `run_workflow`.
+
+### Add to Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "comfyui": {
+      "command": "comfy-mcp-server",
+      "env": { "COMFY_URL": "http://127.0.0.1:8188" }
+    }
+  }
+}
+```
 
 ## Additional info
 
