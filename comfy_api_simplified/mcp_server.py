@@ -406,9 +406,33 @@ def run_workflow(workflow: dict[str, Any], output_node_title: str) -> list[str] 
 
     Example: '20240315_143022_a3f9c12b_ComfyUI_00001_.png'
 
+    The workflow dict must use ComfyUI API format: top-level keys are string
+    node IDs (e.g. "1", "2"), each value has "class_type", "_meta" (with
+    "title"), and "inputs". Node connections are expressed as [node_id, output_index]
+    lists inside inputs. You can build this dict in two ways:
+      1. Load from file: load_workflow(path) -> then set_node_param() to customise
+      2. Construct directly: build the dict from scratch and pass it here — no
+         file or intermediate tools needed. This is the recommended approach when
+         an agent creates a workflow programmatically.
+
+    Example minimal workflow structure:
+        {
+          "1": {"class_type": "CheckpointLoaderSimple",
+                "_meta": {"title": "Load Checkpoint"},
+                "inputs": {"ckpt_name": "model.safetensors"}},
+          "2": {"class_type": "CLIPTextEncode",
+                "_meta": {"title": "Positive Prompt"},
+                "inputs": {"text": "a cat", "clip": ["1", 1]}},
+          ...
+          "N": {"class_type": "SaveImage",
+                "_meta": {"title": "Save Image"},
+                "inputs": {"images": ["N-1", 0], "filename_prefix": "output"}}
+        }
+
     Args:
         workflow (dict): A fully configured ComfyUI API-format workflow dict.
-                         Use load_workflow() and set_node_param() to build it.
+                         Can be built from scratch or via load_workflow() +
+                         set_node_param().
         output_node_title (str): The title of the output node whose images
                                  should be retrieved (e.g. 'Save Image').
 

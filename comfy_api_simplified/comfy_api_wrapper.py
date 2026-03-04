@@ -133,18 +133,21 @@ class ComfyApiWrapper:
         self, prompt: ComfyWorkflowWrapper, output_node_title: str
     ) -> dict:
         """
-        Queues a prompt with a ComfyWorkflowWrapper object and waits for the images to be generated.
+        Queues a prompt and waits for the images to be generated.
 
         Args:
-            prompt (ComfyWorkflowWrapper): The ComfyWorkflowWrapper object representing the prompt.
-            output_node_title (str): The title of the output node.
+            prompt (ComfyWorkflowWrapper | dict): The workflow. A plain dict is accepted
+                and automatically wrapped in ComfyWorkflowWrapper.
+            output_node_title (str): The title of the output node (e.g. 'Save Image').
 
         Returns:
-            dict: A dictionary mapping image filenames to their content.
+            dict: A dictionary mapping image filenames to their content (bytes).
 
         Raises:
             ComfyApiError: If the request fails with a non-200 status code.
         """
+        if not isinstance(prompt, ComfyWorkflowWrapper):
+            prompt = ComfyWorkflowWrapper(prompt)
         prompt_id, images = asyncio.run(self.queue_prompt_and_wait(prompt))
         if images:
             return {str(i): img for i, img in enumerate(images)}
